@@ -1,9 +1,8 @@
-# Dockerfile for Render
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for Render
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -18,22 +17,24 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Download NLTK data
-RUN python -c "import nltk; nltk.download('punkt', quiet=True)"
+RUN python -c "import nltk; nltk.download('punkt')"
 
 # Copy application code
 COPY . .
 
 # Create necessary directories
-RUN mkdir -p templates utils static/uploads
+RUN mkdir -p templates utils
 
 # Set environment variables
 ENV PYTHONPATH=/app
-ENV PORT=10000  # Render uses port 10000
-ENV GEMINI_API_KEY=""
-ENV SECRET_KEY="your-render-secret-key"
+ENV PORT=8080
 
 # Expose the port
-EXPOSE 10000
+EXPOSE 8080
 
-# Use gunicorn for production (Render requirement)
-CMD exec gunicorn --bind :$PORT --workers 2 --threads 4 --timeout 120 app:app
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Use gunicorn for production
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app
